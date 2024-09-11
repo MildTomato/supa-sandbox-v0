@@ -247,11 +247,17 @@ export default function RLSPolicyCreator() {
     setRootGroup((prevRoot) => updateNestedGroup(prevRoot));
   };
 
-  const removeItem = (group: Group, index: number) => {
-    setRootGroup((prevRoot) => ({
-      ...prevRoot,
-      items: prevRoot.items.filter((_, i) => i !== index),
-    }));
+  const removeItem = (itemToRemove: Condition | Group) => {
+    const removeItemFromGroup = (group: Group): Group => {
+      return {
+        ...group,
+        items: group.items
+          .filter((item) => item.id !== itemToRemove.id)
+          .map((item) => ("items" in item ? removeItemFromGroup(item) : item)),
+      };
+    };
+
+    setRootGroup((prevRoot) => removeItemFromGroup(prevRoot));
   };
 
   const generatePolicy = () => {
@@ -524,7 +530,7 @@ ${usingClause};`;
         type="button"
         variant="ghost"
         size="icon"
-        onClick={() => removeItem(group, index)}
+        onClick={() => removeItem(condition)}
       >
         <X className="w-4 h-4" />
       </Button>
@@ -533,22 +539,34 @@ ${usingClause};`;
 
   const renderGroup = (group: Group, depth = 0) => (
     <Card key={group.id} className="mb-4">
-      <CardHeader className="flex flex-row items-center">
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="mr-2">Group (Depth: {depth})</CardTitle>
-        {depth > 0 && (
-          <Select
-            value={group.type}
-            onValueChange={(value) => updateItem(group, "type", value)}
-          >
-            <SelectTrigger className="w-[80px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="AND">AND</SelectItem>
-              <SelectItem value="OR">OR</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
+        <div className="flex items-center">
+          {depth > 0 && (
+            <Select
+              value={group.type}
+              onValueChange={(value) => updateItem(group, "type", value)}
+            >
+              <SelectTrigger className="w-[80px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AND">AND</SelectItem>
+                <SelectItem value="OR">OR</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {depth > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => removeItem(group)}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {group.items.map((item, i) =>
