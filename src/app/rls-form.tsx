@@ -229,21 +229,22 @@ export default function RLSPolicyCreator() {
     field: string,
     value: string
   ) => {
-    if ("items" in item) {
-      setRootGroup((prevRoot) => ({
-        ...prevRoot,
-        items: prevRoot.items.map((i) =>
-          i.id === item.id ? { ...i, type: value as "AND" | "OR" } : i
+    const updateNestedGroup = (group: Group): Group => {
+      return {
+        ...group,
+        items: group.items.map((i) =>
+          i.id === item.id
+            ? "items" in i
+              ? { ...i, type: value as "AND" | "OR" }
+              : { ...i, [field]: value }
+            : "items" in i
+            ? updateNestedGroup(i)
+            : i
         ),
-      }));
-    } else {
-      setRootGroup((prevRoot) => ({
-        ...prevRoot,
-        items: prevRoot.items.map((i) =>
-          i.id === item.id ? { ...i, [field]: value } : i
-        ),
-      }));
-    }
+      };
+    };
+
+    setRootGroup((prevRoot) => updateNestedGroup(prevRoot));
   };
 
   const removeItem = (group: Group, index: number) => {
@@ -673,7 +674,7 @@ ${usingClause};`;
 
           <div className="space-y-2">
             <Label>Current Policy</Label>
-            <pre className="bg-gray-100 p-4 rounded-md overflow-x-auto">
+            <pre className="bg-foreground text-white text-xs p-4 rounded-md overflow-x-auto">
               <code>
                 {formattedPolicy ||
                   "Please fill in all required fields to generate the policy."}
