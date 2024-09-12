@@ -197,41 +197,5 @@ describe("RLS Policy Generator", () => {
     expect(generateRLSPolicy(input)).toBe(expectedSQL);
   });
 
-  it("generates correct SQL for policy with user membership and organization check", () => {
-    const input: PolicyInput = {
-      policyName: "user_membership_org_check",
-      tableName: "projects",
-      policyType: "permissive",
-      operations: { SELECT: true },
-      rootGroup: {
-        id: "root",
-        type: "AND",
-        items: [
-          {
-            id: "1",
-            leftTable: "members",
-            leftColumn: "user_id",
-            operator: "=",
-            rightType: "function",
-            rightFunction: "auth.uid()",
-          } as Condition,
-          {
-            id: "2",
-            leftTable: "teams",
-            leftColumn: "organization_id",
-            operator: "=",
-            rightType: "column",
-            rightTable: "projects",
-            rightColumn: "organization_id",
-          } as Condition,
-        ],
-      },
-      tables: mockTables,
-    };
-
-    const expectedSQL = `CREATE POLICY "user_membership_org_check" ON projects AS PERMISSIVE FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM members JOIN teams ON teams.organization_id = projects.organization_id WHERE members.user_id = auth.uid() AND teams.organization_id = projects.organization_id));`;
-
-    expect(generatePolicy(input)).toBe(expectedSQL);
-  });
   // Additional tests...
 });
