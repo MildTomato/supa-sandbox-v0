@@ -96,4 +96,63 @@ describe("RLS Policy Generator", () => {
 
     expect(generateRLSPolicy(input)).toBe(expectedSQL);
   });
+
+  it("generates SQL with JOIN and complex conditions", () => {
+    const input: PolicyInput = {
+      policyName: "adsd",
+      tableName: "projects",
+      policyType: "permissive",
+      operations: { select: true, insert: false, update: false, delete: false },
+      rootGroup: {
+        id: "root",
+        type: "AND",
+        items: [
+          {
+            id: "1",
+            leftTable: "members",
+            leftColumn: "user_id",
+            operator: "=",
+            rightType: "function",
+            rightFunction: "auth.uid()",
+          },
+          {
+            id: "2",
+            leftTable: "projects",
+            leftColumn: "organization_id",
+            operator: "=",
+            rightType: "column",
+            rightTable: "organizations",
+            rightColumn: "id",
+          },
+          {
+            id: "3",
+            type: "AND",
+            items: [
+              {
+                id: "3a",
+                leftTable: "projects",
+                leftColumn: "id",
+                operator: "=",
+                rightType: "value",
+                rightValue: "supabase",
+              },
+              {
+                id: "3b",
+                leftTable: "projects",
+                leftColumn: "organization_id",
+                operator: ">",
+                rightType: "value",
+                rightValue: "123",
+              },
+            ],
+          },
+        ],
+      },
+      tables: mockTables,
+    };
+
+    const expectedSQL = `CREATE POLICY "adsd" ON projects AS PERMISSIVE FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM members JOIN organizations ON organizations.id = projects.organization_id WHERE members.user_id = auth.uid() AND projects.organization_id = organizations.id AND (projects.id = 'supabase' AND projects.organization_id > '123')));`;
+
+    expect(generateRLSPolicy(input)).toBe(expectedSQL);
+  });
 });

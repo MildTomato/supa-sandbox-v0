@@ -30,7 +30,7 @@ export function generateRLSPolicy(input: PolicyInput): string {
 function generateJoinClause(
   group: Group,
   tables: Table[],
-  primaryTable: string
+  tableName: string
 ): string {
   const usedTables = new Set<string>();
   const joins: string[] = [];
@@ -51,21 +51,21 @@ function generateJoinClause(
   const baseTable = Array.from(usedTables)[0];
   usedTables.delete(baseTable);
 
-  if (baseTable !== primaryTable) {
-    const relationship = findRelationship(tables, baseTable, primaryTable);
+  if (baseTable !== tableName) {
+    const relationship = findRelationship(tables, baseTable, tableName);
     if (relationship) {
       joins.push(
-        `JOIN ${primaryTable} ON ${primaryTable}.${relationship.target_column_name} = ${baseTable}.${relationship.source_column_name}`
+        `JOIN ${tableName} ON ${tableName}.${relationship.target_column_name} = ${baseTable}.${relationship.source_column_name}`
       );
     }
   }
 
   for (const table of Array.from(usedTables)) {
-    if (table !== primaryTable) {
-      const relationship = findRelationship(tables, primaryTable, table);
+    if (table !== tableName) {
+      const relationship = findRelationship(tables, tableName, table);
       if (relationship) {
         joins.push(
-          `JOIN ${table} ON ${table}.${relationship.target_column_name} = ${primaryTable}.${relationship.source_column_name}`
+          `JOIN ${table} ON ${table}.${relationship.target_column_name} = ${tableName}.${relationship.source_column_name}`
         );
       }
     }
@@ -80,26 +80,27 @@ function findRelationship(
   targetTable: string
 ): Relationship | undefined {
   for (const table of tables) {
-    if (table.name === sourceTable) {
+    if (table.name === sourceTable || table.name === targetTable) {
       const relationship = table.relationships.find(
-        (r) => r.target_table_name === targetTable
+        (r) =>
+          (r.source_table_name === sourceTable &&
+            r.target_table_name === targetTable) ||
+          (r.source_table_name === targetTable &&
+            r.target_table_name === sourceTable)
       );
-      if (relationship) return relationship;
-    }
-  }
-  for (const table of tables) {
-    if (table.name === targetTable) {
-      const relationship = table.relationships.find(
-        (r) => r.target_table_name === sourceTable
-      );
-      if (relationship)
-        return {
-          ...relationship,
-          source_table_name: relationship.target_table_name,
-          target_table_name: relationship.source_table_name,
-          source_column_name: relationship.target_column_name,
-          target_column_name: relationship.source_column_name,
-        };
+      if (relationship) {
+        if (relationship.source_table_name === sourceTable) {
+          return relationship;
+        } else {
+          return {
+            ...relationship,
+            source_table_name: relationship.target_table_name,
+            target_table_name: relationship.source_table_name,
+            source_column_name: relationship.target_column_name,
+            target_column_name: relationship.source_column_name,
+          };
+        }
+      }
     }
   }
   return undefined;
