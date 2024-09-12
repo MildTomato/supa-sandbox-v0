@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,149 +22,11 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PlusCircle, X } from "lucide-react";
 import { format } from "sql-formatter";
+import { generateRLSPolicy } from "../rls-policy-generator";
+import { Group, Condition } from "../types/types";
+import { mockTables } from "../mocks/mockTables";
 
 type Operation = "SELECT" | "INSERT" | "UPDATE" | "DELETE";
-
-interface Column {
-  name: string;
-  type: string;
-  is_primary_key?: boolean;
-  is_foreign_key?: boolean;
-  foreign_key_table?: string;
-  foreign_key_column?: string;
-}
-
-interface Relationship {
-  type: string;
-  foreign_key_table: string;
-  foreign_key_column: string;
-  column: string;
-}
-
-interface Table {
-  name: string;
-  schema: string;
-  columns: Column[];
-  relationships: Relationship[];
-}
-
-const mockTables: Table[] = [
-  {
-    name: "projects",
-    schema: "public",
-    columns: [
-      { name: "id", type: "uuid", is_primary_key: true },
-      { name: "name", type: "text" },
-      {
-        name: "organization_id",
-        type: "uuid",
-        is_foreign_key: true,
-        foreign_key_table: "organizations",
-        foreign_key_column: "id",
-      },
-      { name: "created_at", type: "timestamp" },
-      { name: "user_id", type: "uuid" },
-    ],
-    relationships: [
-      {
-        type: "foreign_key",
-        foreign_key_table: "organizations",
-        foreign_key_column: "id",
-        column: "organization_id",
-      },
-    ],
-  },
-  {
-    name: "members",
-    schema: "public",
-    columns: [
-      { name: "id", type: "uuid", is_primary_key: true },
-      { name: "user_id", type: "uuid" },
-      {
-        name: "organization_id",
-        type: "uuid",
-        is_foreign_key: true,
-        foreign_key_table: "organizations",
-        foreign_key_column: "id",
-      },
-      { name: "role", type: "text" },
-      {
-        name: "team_id",
-        type: "uuid",
-        is_foreign_key: true,
-        foreign_key_table: "teams",
-        foreign_key_column: "id",
-      },
-    ],
-    relationships: [
-      {
-        type: "foreign_key",
-        foreign_key_table: "organizations",
-        foreign_key_column: "id",
-        column: "organization_id",
-      },
-      {
-        type: "foreign_key",
-        foreign_key_table: "teams",
-        foreign_key_column: "id",
-        column: "team_id",
-      },
-    ],
-  },
-  {
-    name: "organizations",
-    schema: "public",
-    columns: [
-      { name: "id", type: "uuid", is_primary_key: true },
-      { name: "name", type: "text" },
-      { name: "created_at", type: "timestamp" },
-    ],
-    relationships: [],
-  },
-  {
-    name: "teams",
-    schema: "public",
-    columns: [
-      { name: "id", type: "uuid", is_primary_key: true },
-      { name: "name", type: "text" },
-      {
-        name: "organization_id",
-        type: "uuid",
-        is_foreign_key: true,
-        foreign_key_table: "organizations",
-        foreign_key_column: "id",
-      },
-      { name: "status", type: "text" },
-      { name: "created_at", type: "timestamp" },
-    ],
-    relationships: [
-      {
-        type: "foreign_key",
-        foreign_key_table: "organizations",
-        foreign_key_column: "id",
-        column: "organization_id",
-      },
-    ],
-  },
-];
-
-type Condition = {
-  id: string;
-  leftTable: string;
-  leftColumn: string;
-  operator: string;
-  rightType: "column" | "value" | "function";
-  rightTable?: string;
-  rightColumn?: string;
-  rightValue?: string;
-  rightFunction?: string;
-};
-
-type Group = {
-  id: string;
-  type: "AND" | "OR";
-  items: (Condition | Group)[];
-};
 
 export default function RLSPolicyCreator() {
   const [policyName, setPolicyName] = useState("");
@@ -199,12 +61,12 @@ export default function RLSPolicyCreator() {
       rightTable: tableName,
       rightColumn: "",
     };
-    setRootGroup((prevRoot) => ({
+    setRootGroup((prevRoot: Group) => ({
       ...prevRoot,
       items:
         prevRoot.id === group.id
           ? [...prevRoot.items, newCondition]
-          : prevRoot.items.map((item) =>
+          : prevRoot.items.map((item: Condition | Group) =>
               "items" in item
                 ? { ...item, items: [...item.items, newCondition] }
                 : item
@@ -218,7 +80,7 @@ export default function RLSPolicyCreator() {
       type: "AND",
       items: [],
     };
-    setRootGroup((prevRoot) => ({
+    setRootGroup((prevRoot: Group) => ({
       ...prevRoot,
       items: [...prevRoot.items, newGroup],
     }));
@@ -232,7 +94,7 @@ export default function RLSPolicyCreator() {
     const updateNestedGroup = (group: Group): Group => {
       return {
         ...group,
-        items: group.items.map((i) =>
+        items: group.items.map((i: Condition | Group) =>
           i.id === item.id
             ? "items" in i
               ? { ...i, type: value as "AND" | "OR" }
@@ -244,7 +106,7 @@ export default function RLSPolicyCreator() {
       };
     };
 
-    setRootGroup((prevRoot) => updateNestedGroup(prevRoot));
+    setRootGroup((prevRoot: Group) => updateNestedGroup(prevRoot));
   };
 
   const removeItem = (itemToRemove: Condition | Group) => {
@@ -252,125 +114,14 @@ export default function RLSPolicyCreator() {
       return {
         ...group,
         items: group.items
-          .filter((item) => item.id !== itemToRemove.id)
-          .map((item) => ("items" in item ? removeItemFromGroup(item) : item)),
+          .filter((item: Condition | Group) => item.id !== itemToRemove.id)
+          .map((item: Condition | Group) =>
+            "items" in item ? removeItemFromGroup(item) : item
+          ),
       };
     };
 
-    setRootGroup((prevRoot) => removeItemFromGroup(prevRoot));
-  };
-
-  const generatePolicy = () => {
-    const operationsString = Object.entries(operations)
-      .filter(([, value]) => value)
-      .map(([key]) => key)
-      .join(", ");
-
-    if (!policyName || !tableName || !operationsString) {
-      return "Please fill in all required fields to generate the policy.";
-    }
-
-    const generatePolicyExpression = (group: Group): string => {
-      const conditions = group.items.map((item) => {
-        if ("items" in item) {
-          return `(${generatePolicyExpression(item)})`;
-        } else {
-          return `${item.leftTable}.${item.leftColumn} ${item.operator} ${
-            item.rightFunction ||
-            item.rightValue ||
-            `${item.rightTable}.${item.rightColumn}`
-          }`;
-        }
-      });
-
-      return conditions.join(` ${group.type || "AND"} `);
-    };
-
-    const policyExpression = generatePolicyExpression(rootGroup);
-
-    const tablesUsed = new Set(
-      rootGroup.items
-        .filter((item) => !("items" in item))
-        .flatMap((item) => [item.leftTable, item.rightTable])
-        .filter((table) => table && table !== tableName)
-    );
-
-    const mainTable = Array.from(tablesUsed)[0] || tableName;
-    const otherTables = Array.from(tablesUsed).filter(
-      (table) => table !== mainTable
-    );
-
-    let joinClauses = "";
-    let additionalConditions = [];
-
-    const policyTable = mockTables.find((t) => t.name === tableName);
-
-    otherTables.forEach((table) => {
-      const relationship = findRelationship(mainTable, table);
-      if (relationship) {
-        joinClauses += `JOIN ${table} ON ${table}.${relationship.foreign_key_column} = ${mainTable}.${relationship.column}\n    `;
-      }
-    });
-
-    // Add condition to link back to the policy table if it's not the main table
-    if (mainTable !== tableName) {
-      const relationship = findRelationship(mainTable, tableName);
-      if (relationship) {
-        additionalConditions.push(
-          `${mainTable}.${relationship.column} = ${tableName}.${relationship.foreign_key_column}`
-        );
-      }
-    }
-
-    const usingClause = policyExpression
-      ? `USING (
-      EXISTS (
-        SELECT 1
-        FROM ${mainTable}
-        ${joinClauses}WHERE ${[...additionalConditions, policyExpression].join(
-          " AND "
-        )}
-      )
-    )`
-      : "USING (TRUE)";
-
-    return `CREATE POLICY "${policyName}"
-ON ${tableName}
-AS ${policyType.toUpperCase()}
-FOR ${operationsString}
-TO authenticated
-${usingClause};`;
-  };
-
-  // Helper function to find the relationship between two tables
-  const findRelationship = (
-    table1: string,
-    table2: string
-  ): Relationship | null => {
-    const table1Data = mockTables.find((t) => t.name === table1);
-    const table2Data = mockTables.find((t) => t.name === table2);
-
-    if (table1Data) {
-      const relationship = table1Data.relationships.find(
-        (r) => r.foreign_key_table === table2
-      );
-      if (relationship) return relationship;
-    }
-
-    if (table2Data) {
-      const relationship = table2Data.relationships.find(
-        (r) => r.foreign_key_table === table1
-      );
-      if (relationship)
-        return {
-          ...relationship,
-          foreign_key_table: table1,
-          column: relationship.foreign_key_column,
-          foreign_key_column: relationship.column,
-        };
-    }
-
-    return null;
+    setRootGroup((prevRoot: Group) => removeItemFromGroup(prevRoot));
   };
 
   const renderCondition = (
@@ -587,7 +338,7 @@ ${usingClause};`;
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => addGroup(group)}
+            onClick={() => addGroup()}
           >
             <PlusCircle className="w-4 h-4 mr-1" /> Add Group
           </Button>
@@ -597,7 +348,14 @@ ${usingClause};`;
   );
 
   useEffect(() => {
-    const policy = generatePolicy();
+    const policy = generateRLSPolicy({
+      policyName,
+      tableName,
+      policyType,
+      operations,
+      rootGroup,
+      tables: mockTables,
+    });
 
     if (policy.trim() === "") {
       setFormattedPolicy(""); // Set empty string if policy is empty
@@ -692,7 +450,7 @@ ${usingClause};`;
 
           <div className="space-y-2">
             <Label>Current Policy</Label>
-            <pre className="bg-foreground text-white text-xs p-4 rounded-md overflow-x-auto">
+            <pre className="bg-foreground text-background text-xs p-4 rounded-md overflow-x-auto">
               <code>
                 {formattedPolicy ||
                   "Please fill in all required fields to generate the policy."}
