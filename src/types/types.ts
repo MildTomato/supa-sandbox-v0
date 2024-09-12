@@ -55,5 +55,4 @@ export interface PolicyInput {
   operations: Record<string, boolean>;
   rootGroup: Group;
   tables: Table[];
-  finalCondition?: Condition;
 }
