@@ -1,9 +1,6 @@
-import {
-  generateRLSPolicy,
-  Group,
-  Condition,
-  Table,
-} from "../rls-policy-generator";
+import { generateRLSPolicy } from "../rls-policy-generator";
+import { mockTables } from "../mocks/mockTables";
+import { Group, Condition, Table } from "../types/types";
 
 // Update the PolicyInput type to include tables
 type PolicyInput = {
@@ -16,209 +13,7 @@ type PolicyInput = {
   finalCondition?: Condition;
 };
 
-// Define mock tables to use in tests
-// Define mock tables to use in tests
-const mockTables: Table[] = [
-  {
-    id: "1",
-    name: "projects",
-    schema: "public",
-    columns: [
-      {
-        id: "1",
-        table_id: "1",
-        name: "id",
-        position: 1,
-        default_value: null,
-        is_nullable: false,
-        is_unique: true,
-        is_primary_key: true,
-        is_foreign_key: false,
-        type: "uuid",
-        enums: [],
-        comment: null,
-      },
-      {
-        id: "2",
-        table_id: "1",
-        name: "organization_id",
-        position: 2,
-        default_value: null,
-        is_nullable: true,
-        is_unique: false,
-        is_primary_key: false,
-        is_foreign_key: true,
-        type: "uuid",
-        enums: [],
-        comment: null,
-      },
-    ],
-    relationships: [
-      {
-        id: "1",
-        source_schema: "public",
-        source_table_name: "projects",
-        source_column_name: "organization_id",
-        target_table_name: "organizations",
-        target_column_name: "id",
-      },
-    ],
-  },
-  {
-    id: "2",
-    name: "members",
-    schema: "public",
-    columns: [
-      {
-        id: "3",
-        table_id: "2",
-        name: "id",
-        position: 1,
-        default_value: null,
-        is_nullable: false,
-        is_unique: true,
-        is_primary_key: true,
-        is_foreign_key: false,
-        type: "uuid",
-        enums: [],
-        comment: null,
-      },
-      {
-        id: "4",
-        table_id: "2",
-        name: "user_id",
-        position: 2,
-        default_value: null,
-        is_nullable: true,
-        is_unique: false,
-        is_primary_key: false,
-        is_foreign_key: false,
-        type: "uuid",
-        enums: [],
-        comment: null,
-      },
-      {
-        id: "5",
-        table_id: "2",
-        name: "organization_id",
-        position: 3,
-        default_value: null,
-        is_nullable: true,
-        is_unique: false,
-        is_primary_key: false,
-        is_foreign_key: true,
-        type: "uuid",
-        enums: [],
-        comment: null,
-      },
-      {
-        id: "6",
-        table_id: "2",
-        name: "role",
-        position: 4,
-        default_value: null,
-        is_nullable: true,
-        is_unique: false,
-        is_primary_key: false,
-        is_foreign_key: false,
-        type: "text",
-        enums: [],
-        comment: null,
-      },
-    ],
-    relationships: [
-      {
-        id: "2",
-        source_schema: "public",
-        source_table_name: "members",
-        source_column_name: "organization_id",
-        target_table_name: "organizations",
-        target_column_name: "id",
-      },
-    ],
-  },
-  {
-    id: "3",
-    name: "teams",
-    schema: "public",
-    columns: [
-      {
-        id: "7",
-        table_id: "3",
-        name: "id",
-        position: 1,
-        default_value: null,
-        is_nullable: false,
-        is_unique: true,
-        is_primary_key: true,
-        is_foreign_key: false,
-        type: "uuid",
-        enums: [],
-        comment: null,
-      },
-      {
-        id: "8",
-        table_id: "3",
-        name: "organization_id",
-        position: 2,
-        default_value: null,
-        is_nullable: true,
-        is_unique: false,
-        is_primary_key: false,
-        is_foreign_key: true,
-        type: "uuid",
-        enums: [],
-        comment: null,
-      },
-    ],
-    relationships: [
-      {
-        id: "3",
-        source_schema: "public",
-        source_table_name: "teams",
-        source_column_name: "organization_id",
-        target_table_name: "organizations",
-        target_column_name: "id",
-      },
-    ],
-  },
-  {
-    id: "4",
-    name: "organizations",
-    schema: "public",
-    columns: [
-      {
-        id: "9",
-        table_id: "4",
-        name: "id",
-        position: 1,
-        default_value: null,
-        is_nullable: false,
-        is_unique: true,
-        is_primary_key: true,
-        is_foreign_key: false,
-        type: "uuid",
-        enums: [],
-        comment: null,
-      },
-      {
-        id: "10",
-        table_id: "4",
-        name: "name",
-        position: 2,
-        default_value: null,
-        is_nullable: false,
-        is_unique: false,
-        is_primary_key: false,
-        is_foreign_key: false,
-        type: "text",
-        enums: [],
-        comment: null,
-      },
-    ],
-    relationships: [],
-  },
-];
+// The mockTables constant has been removed from here
 
 describe("RLS Policy Generator", () => {
   // Corrected test for simple condition that respects relationships
@@ -400,6 +195,43 @@ describe("RLS Policy Generator", () => {
     const expectedSQL = `CREATE POLICY "dasdsds" ON projects AS PERMISSIVE FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM teams WHERE teams.organization_id = projects.organization_id AND members.user_id = auth.uid()));`;
 
     expect(generateRLSPolicy(input)).toBe(expectedSQL);
+  });
+
+  it("generates correct SQL for policy with user membership and organization check", () => {
+    const input: PolicyInput = {
+      policyName: "user_membership_org_check",
+      tableName: "projects",
+      policyType: "permissive",
+      operations: { SELECT: true },
+      rootGroup: {
+        id: "root",
+        type: "AND",
+        items: [
+          {
+            id: "1",
+            leftTable: "members",
+            leftColumn: "user_id",
+            operator: "=",
+            rightType: "function",
+            rightFunction: "auth.uid()",
+          } as Condition,
+          {
+            id: "2",
+            leftTable: "teams",
+            leftColumn: "organization_id",
+            operator: "=",
+            rightType: "column",
+            rightTable: "projects",
+            rightColumn: "organization_id",
+          } as Condition,
+        ],
+      },
+      tables: mockTables,
+    };
+
+    const expectedSQL = `CREATE POLICY "user_membership_org_check" ON projects AS PERMISSIVE FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM members JOIN teams ON teams.organization_id = projects.organization_id WHERE members.user_id = auth.uid() AND teams.organization_id = projects.organization_id));`;
+
+    expect(generatePolicy(input)).toBe(expectedSQL);
   });
   // Additional tests...
 });

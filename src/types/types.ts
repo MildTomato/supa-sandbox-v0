@@ -1,11 +1,17 @@
-export interface Column {
+export type Column = {
+  id: string;
+  table_id: string;
   name: string;
+  position: number;
+  default_value: string | null;
+  is_nullable: boolean;
+  is_unique: boolean;
+  is_primary_key: boolean;
+  is_foreign_key: boolean;
   type: string;
-  is_primary_key?: boolean;
-  is_foreign_key?: boolean;
-  foreign_key_table?: string;
-  foreign_key_column?: string;
-}
+  enums: string[];
+  comment: string | null;
+};
 
 export interface Relationship {
   id: string;
