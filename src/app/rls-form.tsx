@@ -25,6 +25,7 @@ import { format } from "sql-formatter";
 import { generateRLSPolicy } from "../rls-policy-generator";
 import { Group, Condition } from "../types/types";
 import { mockTables } from "../mocks/mockTables";
+import { cn } from "@/lib/utils";
 
 type Operation = "SELECT" | "INSERT" | "UPDATE" | "DELETE";
 
@@ -289,37 +290,43 @@ export default function RLSPolicyCreator() {
   );
 
   const renderGroup = (group: Group, depth = 0) => (
-    <Card key={group.id} className="mb-4">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="mr-2">Group (Depth: {depth})</CardTitle>
-        <div className="flex items-center">
-          {depth > 0 && (
-            <Select
-              value={group.type}
-              onValueChange={(value) => updateItem(group, "type", value)}
-            >
-              <SelectTrigger className="w-[80px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AND">AND</SelectItem>
-                <SelectItem value="OR">OR</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-          {depth > 0 && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => removeItem(group)}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
+    <Card
+      key={group.id}
+      className={cn(
+        "mb-4",
+        depth <= 0 ? "border-none shadow-none p-0" : "bg-muted rounded-sm p-0"
+      )}
+    >
+      {depth > 0 && (
+        <>
+          <CardHeader className="flex flex-row items-center justify-between p-3">
+            <CardTitle className="mr-2">Group (Depth: {depth})</CardTitle>
+            <div className="flex items-center">
+              <Select
+                value={group.type}
+                onValueChange={(value) => updateItem(group, "type", value)}
+              >
+                <SelectTrigger className="w-[80px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AND">AND</SelectItem>
+                  <SelectItem value="OR">OR</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => removeItem(group)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+        </>
+      )}
+      <CardContent className={cn(depth <= 0 ? "p-0" : "p-2")}>
         {group.items.map((item, i) =>
           "items" in item
             ? renderGroup(item, depth + 1)
